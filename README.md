@@ -61,6 +61,14 @@ Species annotation:
 gtdbtk classify_wf --genome_dir <my_genomes> --out_dir <output_dir> --cpus 64 -x fna --force
 ```
 Upload \*.unrooted.tree to itol (https://itol.embl.de/) for visualization.
+## Gene trees of sadABC
+Using blastp to align coding sequences (CDS) of each bin against amino acid sequences of enzymes SadA, SadB and SadC.
+```
+makeblastdb -in sad.faa -dbtype prot -out sad
+blastp -query bin.1.faa -out SDB1_sad.txt -db sad -outfmt 6 -evalue 1e-5 -num_threads 8
+```
+CDS that identity > 30% were chosen as functional genes. Phylogenetic and molecular evolutionary analyses of sadABC genes were conducted using MEGA X. Tree files (sadA.nwk, sadB.nwk and sadC.nwk) were put in files/ and uploaded to iTOL for visualization.
+
 # RNA-seq
 ## Install required software
 It is strongly recommended to create a new conda environment for metatranscriptome before installation. The software required, the version used and installation commands are listed:  
