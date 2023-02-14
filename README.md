@@ -59,15 +59,33 @@ What’s in output/: gtdbtk.ar122.classify.tree, gtdbtk.ar122.summary.tsv, gtdbt
 Species annotation:
 ```
 gtdbtk classify_wf --genome_dir <my_genomes> --out_dir <output_dir> --cpus 64 -x fna --force
+gtdbtk infer --msa_file gtdbtk.bac120.user_msa.fasta --out_dir infer --cpus 40 --prefix smx
 ```
-Upload \*.unrooted.tree to itol (https://itol.embl.de/) for visualization.
+Upload smx.unrooted.tree to itol (https://itol.embl.de/) for visualization.
 ## Gene trees of sadABC
 Using blastp to align coding sequences (CDS) of each bin against amino acid sequences of enzymes SadA, SadB and SadC.
 ```
 makeblastdb -in sad.faa -dbtype prot -out sad
 blastp -query bin.1.faa -out SDB1_sad.txt -db sad -outfmt 6 -evalue 1e-5 -num_threads 8
 ```
-CDS that identity > 30% were chosen as functional genes. Phylogenetic and molecular evolutionary analyses of sadABC genes were conducted using MEGA X. Tree files (sadA.nwk, sadB.nwk and sadC.nwk) were put in files/ and uploaded to iTOL for visualization.
+CDS that identity > 75% were chosen as functional genes. Phylogenetic and molecular evolutionary analyses of sadABC genes were conducted using MEGA X. Tree files (sadA.nwk, sadB.nwk and sadC.nwk) were put in files/ and uploaded to iTOL for visualization.
+
+# Functional annatation
+We used prokka to annatate functional genes of each bin.
+Install and add databases:
+```
+conda create -n prokka
+conda install prokka
+prokka --setupdb
+prokka --listdb
+```
+annatate:
+```
+cd path/to/bins/
+for file in `ls $1`
+do
+prokka $file --outdir path/to/prokka --prefix $file --force --cpus 40
+```
 
 # RNA-seq
 ## Install required software
@@ -92,12 +110,12 @@ tar -zxvf subread-2.0.1-Linux-x86_64.tar.gz
 Raw data was deposited in NCBI under the accession number of PRJNA799876. Four triplicate samples were collected during SMX degradation at 0, 4, 8 and 12 h.
 Quality control:
 ```
-fastp -i in.R1.fq.gz -I in.R2.fq.gz -o out.R1.fq.gz -O out.R2.fq.gz
+fastp -i raw_h0_1_1.fq.gz -I raw_h0_1_2.fq.gz -o h0_1_1.fq.gz -O h0_1_2.fq.gz
 ```
 Build sam database
 ```
-bowtie2-build ASSEMBLY/megahit/final.contigs.fa smx
-bowtie2 -x smx -1 example_1.1.fastq -2 example_1.2.fastq -S example.sam -p 32
+bowtie2-build path/to/assemble/scaffold.fa smx
+bowtie2 -x smx -1 h0_1.1.fq.gz -2 h0_1.2.fq.gz -S smx.sam -p 32
 ```
 sam to bam:
 ```
@@ -107,10 +125,11 @@ samtools view -h smx.sorted.bam|less -N
 ```
 Count mapped reads using the sorted bam file
 ```
-featureCounts -p -t gene -g gene_id -a total.gtf -o counts.txt smx.sorted.bam
+cat path/to/prokka/*.gff /path/to/transcription/total.gff
+gffread total.gff -T -o total.gtf
+featureCounts -p -t CDS -g transcript_id -a total.gtf -o counts.txt smx.sorted.bam
 ```
-Sort 12 counts files into 1 file manually, see detailed in files/total_counts.txt.
-Select degradation genes shown in Figure 5 and calculate their average counts, see detailed in files/degradation_genes_expression.txt.
+
 
 ## Heatmap (based on R)
 Install and library the package:
@@ -229,14 +248,14 @@ In order to distinguish contigs with putative plasmids detected at different cut
 # Calculate coverage of contigs
 ```
 conda activate RNA-seq
-cd /path/to/assemble/contigs
-bowtie2-build --thread 40 final.contigs.fa all_contig_build
-bowtie2 -x all_contig_build -1 ALL_READS_1.fastq -2 ALL_READS_2.fastq -S all_contig.sam --threads 1 
-samtools view -bS all_contig.sam > all_contig.bam
-samtools sort  all_contig.bam -o all_contig_sorted.bam
-samtools index all_contig_sorted.bam
+cd /path/to/assemble/
+bowtie2-build --thread 40 scaffold.fa all
+bowtie2 -x all -1 ALL_READS_1.fastq -2 ALL_READS_2.fastq -S all.sam --threads 1 
+samtools view -bS all.sam > all.bam
+samtools sort  all.bam -o all_sorted.bam
+samtools index all_sorted.bam
 ```
 put three files: fasta, sorted.bam, sorted.bam.bai into one folder checkM_all
 ```
-checkm coverage checkM_all/ all_coverage.out checkM_all/all_contig_sorted.bam -x fasta -m 20
+checkm coverage checkM_all/ all_coverage.out checkM_all/all_sorted.bam -x fasta -m 20
 ```
